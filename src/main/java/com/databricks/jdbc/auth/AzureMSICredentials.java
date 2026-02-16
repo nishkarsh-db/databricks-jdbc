@@ -154,7 +154,7 @@ public class AzureMSICredentials implements TokenSource {
       HttpGet getRequest = new HttpGet(uriBuilder.build());
       headers.forEach(getRequest::setHeader);
       LOGGER.debug("Executing GET request to retrieve Azure MSI token");
-      HttpResponse response = hc.execute(getRequest);
+      HttpResponse response = hc.executeWithRetry(getRequest, RequestType.AUTH);
       OAuthResponse resp =
           JsonUtil.getMapper().readValue(response.getEntity().getContent(), OAuthResponse.class);
       Instant expiry = Instant.now().plus(resp.getExpiresIn(), ChronoUnit.SECONDS);

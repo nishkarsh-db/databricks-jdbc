@@ -258,7 +258,7 @@ class VolumeOperationProcessor {
     try {
       // We return the input stream directly to clients, if they want to consume as input stream
       if (isAllowedInputStreamForVolumeOperation) {
-        responseStream = databricksHttpClient.execute(httpGet);
+        responseStream = databricksHttpClient.executeWithRetry(httpGet, RequestType.VOLUME_GET);
         if (!HttpUtil.isSuccessfulHttpResponse(responseStream)) {
           status = VolumeOperationStatus.FAILED;
           errorMessage =
@@ -291,7 +291,8 @@ class VolumeOperationProcessor {
       return;
     }
 
-    try (CloseableHttpResponse response = databricksHttpClient.execute(httpGet)) {
+    try (CloseableHttpResponse response =
+        databricksHttpClient.executeWithRetry(httpGet, RequestType.VOLUME_GET)) {
       if (!HttpUtil.isSuccessfulHttpResponse(response)) {
         LOGGER.error(
             "Failed to fetch content from volume with error {} for local file {}",
@@ -362,7 +363,8 @@ class VolumeOperationProcessor {
     }
 
     // Execute the request
-    try (CloseableHttpResponse response = databricksHttpClient.execute(httpPut)) {
+    try (CloseableHttpResponse response =
+        databricksHttpClient.executeWithRetry(httpPut, RequestType.VOLUME_PUT)) {
       // Process the response
       if (HttpUtil.isSuccessfulHttpResponse(response)) {
         status = VolumeOperationStatus.SUCCEEDED;
@@ -410,7 +412,8 @@ class VolumeOperationProcessor {
     // TODO: Implement AWS-specific logic if required
     HttpDelete httpDelete = new HttpDelete(operationUrl);
     headers.forEach(httpDelete::addHeader);
-    try (CloseableHttpResponse response = databricksHttpClient.execute(httpDelete)) {
+    try (CloseableHttpResponse response =
+        databricksHttpClient.executeWithRetry(httpDelete, RequestType.VOLUME_DELETE)) {
       if (HttpUtil.isSuccessfulHttpResponse(response)) {
         status = VolumeOperationStatus.SUCCEEDED;
       } else {

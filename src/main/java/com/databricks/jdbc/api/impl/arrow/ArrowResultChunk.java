@@ -79,7 +79,7 @@ public class ArrowResultChunk extends AbstractArrowResultChunk {
       HttpGet getRequest = new HttpGet(uriBuilder.build());
       addHeaders(getRequest, chunkLink.getHttpHeaders());
       // Retry would be done in http client, we should not bother about that here
-      response = httpClient.execute(getRequest, true);
+      response = httpClient.executeWithRetry(getRequest, RequestType.CLOUD_FETCH, true);
       checkHTTPError(response);
       long downloadTimeMs = (System.nanoTime() - startTime) / 1_000_000;
 

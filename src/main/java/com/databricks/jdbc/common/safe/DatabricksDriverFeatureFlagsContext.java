@@ -114,7 +114,8 @@ public class DatabricksDriverFeatureFlagsContext {
   @VisibleForTesting
   void fetchAndSetFlagsFromServer(IDatabricksHttpClient httpClient, HttpGet request)
       throws DatabricksHttpException, IOException {
-    try (CloseableHttpResponse response = httpClient.execute(request)) {
+    try (CloseableHttpResponse response =
+        httpClient.executeWithRetry(request, RequestType.FETCH_FEATURE_FLAGS)) {
       if (response.getStatusLine().getStatusCode() == 200) {
         String responseBody = EntityUtils.toString(response.getEntity());
         FeatureFlagsResponse featureFlagsResponse =

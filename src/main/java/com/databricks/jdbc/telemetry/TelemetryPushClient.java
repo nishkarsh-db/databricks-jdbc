@@ -57,7 +57,8 @@ public class TelemetryPushClient implements ITelemetryPushClient {
     Map<String, String> authHeaders =
         isAuthenticated ? databricksConfig.authenticate() : Collections.emptyMap();
     authHeaders.forEach(post::addHeader);
-    try (CloseableHttpResponse response = httpClient.execute(post)) {
+    try (CloseableHttpResponse response =
+        httpClient.executeWithRetry(post, RequestType.TELEMETRY_PUSH)) {
       // TODO: check response and add retry for partial failures
       if (!HttpUtil.isSuccessfulHttpResponse(response)) {
         LOGGER.trace(
