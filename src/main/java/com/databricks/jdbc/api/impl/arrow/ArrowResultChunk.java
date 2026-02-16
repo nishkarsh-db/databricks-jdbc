@@ -7,6 +7,7 @@ import static com.databricks.jdbc.telemetry.TelemetryHelper.getStatementIdString
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.common.CompressionCodec;
 import com.databricks.jdbc.common.DatabricksJdbcUrlParams;
+import com.databricks.jdbc.common.RequestType;
 import com.databricks.jdbc.common.util.DecompressionUtil;
 import com.databricks.jdbc.dbclient.IDatabricksHttpClient;
 import com.databricks.jdbc.dbclient.impl.common.StatementId;

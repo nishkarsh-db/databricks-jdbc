@@ -1,5 +1,6 @@
 package com.databricks.jdbc.auth;
 
+import com.databricks.jdbc.common.RequestType;
 import com.databricks.jdbc.common.util.JsonUtil;
 import com.databricks.jdbc.dbclient.IDatabricksHttpClient;
 import com.databricks.jdbc.exception.DatabricksHttpException;
