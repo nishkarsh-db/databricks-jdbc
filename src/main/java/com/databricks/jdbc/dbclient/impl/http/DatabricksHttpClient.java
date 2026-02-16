@@ -6,7 +6,6 @@ import static com.databricks.jdbc.dbclient.impl.common.ClientConfigurator.conver
 import static io.netty.util.NetUtil.LOCALHOST;
 
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
-import com.databricks.jdbc.common.HttpClientType;
 import com.databricks.jdbc.common.RequestType;
 import com.databricks.jdbc.common.util.DriverUtil;
 import com.databricks.jdbc.common.util.UserAgentManager;
@@ -53,9 +52,9 @@ public class DatabricksHttpClient implements IDatabricksHttpClient, Closeable {
   private CloseableHttpAsyncClient asyncClient;
   private IDatabricksConnectionContext connectionContext;
 
-  DatabricksHttpClient(IDatabricksConnectionContext connectionContext, HttpClientType type) {
+  DatabricksHttpClient(IDatabricksConnectionContext connectionContext) {
     connectionManager = initializeConnectionManager(connectionContext);
-    httpClient = makeClosableHttpClient(connectionContext, type);
+    httpClient = makeClosableHttpClient(connectionContext);
     idleConnectionEvictor =
         new IdleConnectionEvictor(
             connectionManager, connectionContext.getIdleHttpConnectionExpiry(), TimeUnit.SECONDS);
@@ -219,18 +218,12 @@ public class DatabricksHttpClient implements IDatabricksHttpClient, Closeable {
   }
 
   private CloseableHttpClient makeClosableHttpClient(
-      IDatabricksConnectionContext connectionContext, HttpClientType type) {
-    DatabricksHttpRetryHandler retryHandler =
-        type.equals(HttpClientType.COMMON)
-            ? new DatabricksHttpRetryHandler(connectionContext)
-            : new UCVolumeHttpRetryHandler(connectionContext);
+      IDatabricksConnectionContext connectionContext) {
     HttpClientBuilder builder =
         HttpClientBuilder.create()
             .setConnectionManager(connectionManager)
             .setUserAgent(UserAgentManager.getUserAgentString())
-            .setDefaultRequestConfig(makeRequestConfig(connectionContext))
-            .setRetryHandler(retryHandler)
-            .addInterceptorFirst(retryHandler);
+            .setDefaultRequestConfig(makeRequestConfig(connectionContext));
     setupProxy(connectionContext, builder);
     if (DriverUtil.isRunningAgainstFake()) {
       setFakeServiceRouteInHttpClient(builder);

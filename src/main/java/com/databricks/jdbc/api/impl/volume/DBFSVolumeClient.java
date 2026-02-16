@@ -9,7 +9,6 @@ import com.databricks.jdbc.api.IDatabricksVolumeClient;
 import com.databricks.jdbc.api.impl.VolumeOperationStatus;
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.common.DatabricksClientConfiguratorManager;
-import com.databricks.jdbc.common.HttpClientType;
 import com.databricks.jdbc.common.util.DatabricksThreadContextHolder;
 import com.databricks.jdbc.common.util.JsonUtil;
 import com.databricks.jdbc.common.util.StringUtil;
@@ -105,8 +104,7 @@ public class DBFSVolumeClient implements IDatabricksVolumeClient, Closeable {
     this.workspaceClient = getWorkspaceClientFromConnectionContext(connectionContext);
     this.apiClient = workspaceClient.apiClient();
     this.databricksHttpClient =
-        DatabricksHttpClientFactory.getInstance()
-            .getClient(connectionContext, HttpClientType.VOLUME);
+        DatabricksHttpClientFactory.getInstance().getClient(connectionContext);
     this.allowedVolumeIngestionPaths = connectionContext.getVolumeOperationAllowedPaths();
     // When enableVolumeOperations is disabled, volume operations on streams are blocked which are
     // accessed directly via a connection URL.
