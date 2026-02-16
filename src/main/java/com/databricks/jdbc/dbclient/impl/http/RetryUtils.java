@@ -119,4 +119,21 @@ public class RetryUtils {
     RetryPolicy retryPolicy = requestType.getRetryPolicy();
     return (retryPolicy == RetryPolicy.IDEMPOTENT) ? IDEMPOTENT_STRATEGY : NON_IDEMPOTENT_STRATEGY;
   }
+
+  /**
+   * Extracts DatabricksRetryHandlerException from the exception cause chain.
+   *
+   * @param e the exception to search through
+   * @return the DatabricksRetryHandlerException if found, null otherwise
+   */
+  public static DatabricksRetryHandlerException extractRetryException(Throwable e) {
+    Throwable cause = e.getCause();
+    while (cause != null) {
+      if (cause instanceof DatabricksRetryHandlerException) {
+        return (DatabricksRetryHandlerException) cause;
+      }
+      cause = cause.getCause();
+    }
+    return null;
+  }
 }
