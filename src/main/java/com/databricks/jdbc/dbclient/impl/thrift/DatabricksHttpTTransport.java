@@ -1,5 +1,7 @@
 package com.databricks.jdbc.dbclient.impl.thrift;
 
+import static com.databricks.jdbc.common.DatabricksJdbcConstants.THRIFT_ERROR_MESSAGE_HEADER;
+
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.dbclient.IDatabricksHttpClient;
 import com.databricks.jdbc.dbclient.impl.common.TracingUtil;
@@ -169,15 +171,24 @@ public class DatabricksHttpTTransport extends TTransport {
       return;
     }
 
+    // Extract all headers for retry handling
     Map<String, String> headers = new HashMap<>();
     for (org.apache.http.Header header : response.getAllHeaders()) {
       headers.put(header.getName(), header.getValue());
     }
 
+    // Build error message matching master branch format
+    String statusLine = response.getStatusLine().toString();
     String errorMessage =
-        String.format(
-            "HTTP request failed by code: %d, status line: %s",
-            statusCode, response.getStatusLine().toString());
+        String.format("HTTP request failed by code: %d, status line: %s.", statusCode, statusLine);
+
+    // Add Thrift error header if present (matching master branch)
+    if (response.containsHeader(THRIFT_ERROR_MESSAGE_HEADER)) {
+      errorMessage +=
+          String.format(
+              "Thrift Header : %s",
+              response.getFirstHeader(THRIFT_ERROR_MESSAGE_HEADER).getValue());
+    }
 
     throw new DatabricksRetryHandlerException(errorMessage, statusCode, headers);
   }

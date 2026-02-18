@@ -9,6 +9,7 @@ import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.api.internal.IDatabricksSession;
 import com.databricks.jdbc.api.internal.IDatabricksStatementInternal;
 import com.databricks.jdbc.common.DatabricksClientConfiguratorManager;
+import com.databricks.jdbc.common.RequestType;
 import com.databricks.jdbc.common.StatementType;
 import com.databricks.jdbc.common.util.DatabricksThreadContextHolder;
 import com.databricks.jdbc.common.util.DriverUtil;
@@ -16,6 +17,9 @@ import com.databricks.jdbc.common.util.ProtocolFeatureUtil;
 import com.databricks.jdbc.dbclient.impl.common.StatementId;
 import com.databricks.jdbc.dbclient.impl.common.TimeoutHandler;
 import com.databricks.jdbc.dbclient.impl.http.DatabricksHttpClientFactory;
+import com.databricks.jdbc.dbclient.impl.http.IRetryStrategy;
+import com.databricks.jdbc.dbclient.impl.http.RetryTimeoutManager;
+import com.databricks.jdbc.dbclient.impl.http.RetryUtils;
 import com.databricks.jdbc.exception.*;
 import com.databricks.jdbc.log.JdbcLogger;
 import com.databricks.jdbc.log.JdbcLoggerFactory;
@@ -27,12 +31,14 @@ import com.databricks.sdk.core.DatabricksConfig;
 import com.databricks.sdk.service.sql.StatementState;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.http.HttpException;
 import org.apache.thrift.TBase;
 import org.apache.thrift.TException;
 import org.apache.thrift.TFieldIdEnum;
 import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.transport.TTransportException;
 
 final class DatabricksThriftAccessor {
 
@@ -966,13 +972,9 @@ final class DatabricksThriftAccessor {
               // Non-retriable exception or exhausted retries for exception
               String errorMsg =
                   String.format(
-                      "Failed to flush data to server after %d retry attempts. Request type: %s, Exception: %s",
-                      retryAttempt, requestType, retryException.getCause().getMessage());
+                      "Failed to flush data to server: %s", retryException.getCause().getMessage());
               LOGGER.error(retryException.getCause(), errorMsg);
-              DatabricksHttpException httpException =
-                  new DatabricksHttpException(
-                      errorMsg, retryException.getCause(), DatabricksDriverErrorCode.INVALID_STATE);
-              throw new TTransportException(TTransportException.UNKNOWN, errorMsg, httpException);
+              throw new TTransportException(TTransportException.UNKNOWN, errorMsg);
             }
           } else {
             // Case 2: HTTP status code-based retry (e.g., 503, 429, 500)
@@ -989,14 +991,9 @@ final class DatabricksThriftAccessor {
             if (shouldRetryAfter.isEmpty()) {
               // Non-retriable HTTP status code or exhausted retries for status code
               String errorMsg =
-                  String.format(
-                      "Failed to flush data to server: HTTP request failed by code: %d. Request type: %s, Retry attempts: %d",
-                      statusCode, requestType, retryAttempt);
+                  String.format("Failed to flush data to server: %s", retryException.getMessage());
               LOGGER.error(retryException, errorMsg);
-              DatabricksHttpException httpException =
-                  new DatabricksHttpException(
-                      errorMsg, retryException, DatabricksDriverErrorCode.INVALID_STATE);
-              throw new TTransportException(TTransportException.UNKNOWN, errorMsg, httpException);
+              throw new TTransportException(TTransportException.UNKNOWN, errorMsg);
             }
           }
           try {
