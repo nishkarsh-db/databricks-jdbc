@@ -5,6 +5,7 @@ import static com.databricks.jdbc.common.DatabricksJdbcConstants.DEFAULT_HTTP_EX
 import com.databricks.jdbc.common.RequestType;
 import com.databricks.jdbc.common.RetryPolicy;
 import com.databricks.jdbc.exception.DatabricksHttpException;
+import com.databricks.jdbc.exception.DatabricksRetryHandlerException;
 import com.databricks.jdbc.log.JdbcLogger;
 import com.databricks.jdbc.log.JdbcLoggerFactory;
 import java.util.Map;
