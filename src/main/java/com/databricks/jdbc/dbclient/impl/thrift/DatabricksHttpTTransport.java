@@ -1,10 +1,12 @@
 package com.databricks.jdbc.dbclient.impl.thrift;
 
+import static com.databricks.jdbc.common.DatabricksJdbcConstants.THRIFT_ERROR_MESSAGE_HEADER;
+
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
-import com.databricks.jdbc.common.util.ValidationUtil;
 import com.databricks.jdbc.dbclient.IDatabricksHttpClient;
 import com.databricks.jdbc.dbclient.impl.common.TracingUtil;
 import com.databricks.jdbc.exception.DatabricksHttpException;
+import com.databricks.jdbc.exception.DatabricksRetryHandlerException;
 import com.databricks.jdbc.log.JdbcLogger;
 import com.databricks.jdbc.log.JdbcLoggerFactory;
 import com.databricks.sdk.core.DatabricksConfig;
@@ -126,8 +128,7 @@ public class DatabricksHttpTTransport extends TTransport {
     // Execute the request and handle the response
     long httpRequestStartTime = System.currentTimeMillis();
     try (CloseableHttpResponse response = httpClient.execute(request)) {
-
-      ValidationUtil.checkHTTPError(response);
+      checkHHTTPResponseForRetry(response);
 
       // Read the response
       HttpEntity entity = response.getEntity();
@@ -161,6 +162,36 @@ public class DatabricksHttpTTransport extends TTransport {
 
   @Override
   public void checkReadBytesAvailable(long numBytes) throws TTransportException {}
+
+  public void checkHHTTPResponseForRetry(CloseableHttpResponse response)
+      throws DatabricksRetryHandlerException {
+    int statusCode = response.getStatusLine().getStatusCode();
+
+    if (statusCode >= 200 && statusCode < 300) {
+      return;
+    }
+
+    // Extract all headers for retry handling
+    Map<String, String> headers = new HashMap<>();
+    for (org.apache.http.Header header : response.getAllHeaders()) {
+      headers.put(header.getName(), header.getValue());
+    }
+
+    // Build error message matching master branch format
+    String statusLine = response.getStatusLine().toString();
+    String errorMessage =
+        String.format("HTTP request failed by code: %d, status line: %s.", statusCode, statusLine);
+
+    // Add Thrift error header if present (matching master branch)
+    if (response.containsHeader(THRIFT_ERROR_MESSAGE_HEADER)) {
+      errorMessage +=
+          String.format(
+              "Thrift Header : %s",
+              response.getFirstHeader(THRIFT_ERROR_MESSAGE_HEADER).getValue());
+    }
+
+    throw new DatabricksRetryHandlerException(errorMessage, statusCode, headers);
+  }
 
   /** Refreshes the custom headers by re-authenticating if necessary. */
   private void refreshHeadersIfRequired() {
