@@ -9,6 +9,7 @@ import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.api.internal.IDatabricksSession;
 import com.databricks.jdbc.api.internal.IDatabricksStatementInternal;
 import com.databricks.jdbc.common.DatabricksClientConfiguratorManager;
+import com.databricks.jdbc.common.RequestType;
 import com.databricks.jdbc.common.StatementType;
 import com.databricks.jdbc.common.util.DatabricksThreadContextHolder;
 import com.databricks.jdbc.common.util.DriverUtil;
@@ -16,6 +17,9 @@ import com.databricks.jdbc.common.util.ProtocolFeatureUtil;
 import com.databricks.jdbc.dbclient.impl.common.StatementId;
 import com.databricks.jdbc.dbclient.impl.common.TimeoutHandler;
 import com.databricks.jdbc.dbclient.impl.http.DatabricksHttpClientFactory;
+import com.databricks.jdbc.dbclient.impl.http.IRetryStrategy;
+import com.databricks.jdbc.dbclient.impl.http.RetryTimeoutManager;
+import com.databricks.jdbc.dbclient.impl.http.RetryUtils;
 import com.databricks.jdbc.exception.*;
 import com.databricks.jdbc.log.JdbcLogger;
 import com.databricks.jdbc.log.JdbcLoggerFactory;
@@ -27,12 +31,14 @@ import com.databricks.sdk.core.DatabricksConfig;
 import com.databricks.sdk.service.sql.StatementState;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.http.HttpException;
 import org.apache.thrift.TBase;
 import org.apache.thrift.TException;
 import org.apache.thrift.TFieldIdEnum;
 import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.transport.TTransportException;
 
 final class DatabricksThriftAccessor {
 
@@ -81,9 +87,17 @@ final class DatabricksThriftAccessor {
     LOGGER.debug("Fetching thrift response for request {}", request.toString());
     try {
       if (request instanceof TOpenSessionReq) {
-        return getThriftClient().OpenSession((TOpenSessionReq) request);
+        return (TOpenSessionResp)
+            wrapTCLICall(
+                request,
+                r -> getThriftClient().OpenSession((TOpenSessionReq) r),
+                RequestType.THRIFT_OPEN_SESSION);
       } else if (request instanceof TCloseSessionReq) {
-        return getThriftClient().CloseSession((TCloseSessionReq) request);
+        return (TCloseSessionResp)
+            wrapTCLICall(
+                request,
+                r -> getThriftClient().CloseSession((TCloseSessionReq) r),
+                RequestType.THRIFT_CLOSE_SESSION);
       } else if (request instanceof TGetFunctionsReq) {
         return listFunctions((TGetFunctionsReq) request);
       } else if (request instanceof TGetPrimaryKeysReq) {
@@ -158,7 +172,11 @@ final class DatabricksThriftAccessor {
 
   TCancelOperationResp cancelOperation(TCancelOperationReq req) throws DatabricksHttpException {
     try {
-      return getThriftClient().CancelOperation(req);
+      return (TCancelOperationResp)
+          wrapTCLICall(
+              req,
+              r -> getThriftClient().CancelOperation((TCancelOperationReq) r),
+              RequestType.THRIFT_CANCEL_OPERATION);
     } catch (TException e) {
       String errorMessage =
           String.format(
@@ -171,7 +189,11 @@ final class DatabricksThriftAccessor {
 
   TCloseOperationResp closeOperation(TCloseOperationReq req) throws DatabricksHttpException {
     try {
-      return getThriftClient().CloseOperation(req);
+      return (TCloseOperationResp)
+          wrapTCLICall(
+              req,
+              r -> getThriftClient().CloseOperation((TCloseOperationReq) r),
+              RequestType.THRIFT_CLOSE_OPERATION);
     } catch (TException e) {
       String errorMessage =
           String.format(
@@ -211,7 +233,12 @@ final class DatabricksThriftAccessor {
       }
       TExecuteStatementResp response;
       TFetchResultsResp resultSet;
-      response = getThriftClient().ExecuteStatement(request);
+      response =
+          (TExecuteStatementResp)
+              wrapTCLICall(
+                  request,
+                  r -> getThriftClient().ExecuteStatement((TExecuteStatementReq) r),
+                  RequestType.THRIFT_EXECUTE_STATEMENT);
       checkResponseForErrors(response);
 
       StatementId statementId = new StatementId(response.getOperationHandle().operationId);
@@ -345,7 +372,12 @@ final class DatabricksThriftAccessor {
 
     TExecuteStatementResp response;
     try {
-      response = getThriftClient().ExecuteStatement(request);
+      response =
+          (TExecuteStatementResp)
+              wrapTCLICall(
+                  request,
+                  r -> getThriftClient().ExecuteStatement((TExecuteStatementReq) r),
+                  RequestType.THRIFT_EXECUTE_STATEMENT);
       if (Arrays.asList(TStatusCode.ERROR_STATUS, TStatusCode.INVALID_HANDLE_STATUS)
           .contains(response.status.statusCode)) {
         LOGGER.error(
@@ -504,7 +536,12 @@ final class DatabricksThriftAccessor {
   private TFetchResultsResp executeFetchRequest(TFetchResultsReq request) throws SQLException {
     TFetchResultsResp response;
     try {
-      response = getThriftClient().FetchResults(request);
+      response =
+          (TFetchResultsResp)
+              wrapTCLICall(
+                  request,
+                  r -> getThriftClient().FetchResults((TFetchResultsReq) r),
+                  RequestType.THRIFT_FETCH_RESULTS);
     } catch (TException e) {
       String errorMessage =
           String.format(
@@ -593,58 +630,103 @@ final class DatabricksThriftAccessor {
   private TFetchResultsResp listFunctions(TGetFunctionsReq request)
       throws TException, SQLException {
     if (enableDirectResults) request.setGetDirectResults(DEFAULT_DIRECT_RESULTS);
-    TGetFunctionsResp response = getThriftClient().GetFunctions(request);
+    TGetFunctionsResp response =
+        (TGetFunctionsResp)
+            wrapTCLICall(
+                request,
+                r -> getThriftClient().GetFunctions((TGetFunctionsReq) r),
+                RequestType.THRIFT_METADATA);
     return fetchMetadataResults(response, response.toString());
   }
 
   private TFetchResultsResp listPrimaryKeys(TGetPrimaryKeysReq request)
       throws TException, SQLException {
     if (enableDirectResults) request.setGetDirectResults(DEFAULT_DIRECT_RESULTS);
-    TGetPrimaryKeysResp response = getThriftClient().GetPrimaryKeys(request);
+    TGetPrimaryKeysResp response =
+        (TGetPrimaryKeysResp)
+            wrapTCLICall(
+                request,
+                r -> getThriftClient().GetPrimaryKeys((TGetPrimaryKeysReq) r),
+                RequestType.THRIFT_METADATA);
     return fetchMetadataResults(response, response.toString());
   }
 
   private TFetchResultsResp listCrossReferences(TGetCrossReferenceReq request)
       throws TException, SQLException {
     if (enableDirectResults) request.setGetDirectResults(DEFAULT_DIRECT_RESULTS);
-    TGetCrossReferenceResp response = getThriftClient().GetCrossReference(request);
+    TGetCrossReferenceResp response =
+        (TGetCrossReferenceResp)
+            wrapTCLICall(
+                request,
+                r -> getThriftClient().GetCrossReference((TGetCrossReferenceReq) r),
+                RequestType.THRIFT_METADATA);
     return fetchMetadataResults(response, response.toString());
   }
 
   private TFetchResultsResp getTables(TGetTablesReq request) throws TException, SQLException {
     if (enableDirectResults) request.setGetDirectResults(DEFAULT_DIRECT_RESULTS);
-    TGetTablesResp response = getThriftClient().GetTables(request);
+    TGetTablesResp response =
+        (TGetTablesResp)
+            wrapTCLICall(
+                request,
+                r -> getThriftClient().GetTables((TGetTablesReq) r),
+                RequestType.THRIFT_METADATA);
     return fetchMetadataResults(response, response.toString());
   }
 
   private TFetchResultsResp getTableTypes(TGetTableTypesReq request)
       throws TException, SQLException {
     if (enableDirectResults) request.setGetDirectResults(DEFAULT_DIRECT_RESULTS);
-    TGetTableTypesResp response = getThriftClient().GetTableTypes(request);
+    TGetTableTypesResp response =
+        (TGetTableTypesResp)
+            wrapTCLICall(
+                request,
+                r -> getThriftClient().GetTableTypes((TGetTableTypesReq) r),
+                RequestType.THRIFT_METADATA);
     return fetchMetadataResults(response, response.toString());
   }
 
   private TFetchResultsResp getCatalogs(TGetCatalogsReq request) throws TException, SQLException {
     if (enableDirectResults) request.setGetDirectResults(DEFAULT_DIRECT_RESULTS);
-    TGetCatalogsResp response = getThriftClient().GetCatalogs(request);
+    TGetCatalogsResp response =
+        (TGetCatalogsResp)
+            wrapTCLICall(
+                request,
+                r -> getThriftClient().GetCatalogs((TGetCatalogsReq) r),
+                RequestType.THRIFT_METADATA);
     return fetchMetadataResults(response, response.toString());
   }
 
   private TFetchResultsResp listSchemas(TGetSchemasReq request) throws TException, SQLException {
     if (enableDirectResults) request.setGetDirectResults(DEFAULT_DIRECT_RESULTS);
-    TGetSchemasResp response = getThriftClient().GetSchemas(request);
+    TGetSchemasResp response =
+        (TGetSchemasResp)
+            wrapTCLICall(
+                request,
+                r -> getThriftClient().GetSchemas((TGetSchemasReq) r),
+                RequestType.THRIFT_METADATA);
     return fetchMetadataResults(response, response.toString());
   }
 
   private TFetchResultsResp getTypeInfo(TGetTypeInfoReq request) throws TException, SQLException {
     if (enableDirectResults) request.setGetDirectResults(DEFAULT_DIRECT_RESULTS);
-    TGetTypeInfoResp response = getThriftClient().GetTypeInfo(request);
+    TGetTypeInfoResp response =
+        (TGetTypeInfoResp)
+            wrapTCLICall(
+                request,
+                r -> getThriftClient().GetTypeInfo((TGetTypeInfoReq) r),
+                RequestType.THRIFT_METADATA);
     return fetchMetadataResults(response, response.toString());
   }
 
   private TFetchResultsResp listColumns(TGetColumnsReq request) throws TException, SQLException {
     if (enableDirectResults) request.setGetDirectResults(DEFAULT_DIRECT_RESULTS);
-    TGetColumnsResp response = getThriftClient().GetColumns(request);
+    TGetColumnsResp response =
+        (TGetColumnsResp)
+            wrapTCLICall(
+                request,
+                r -> getThriftClient().GetColumns((TGetColumnsReq) r),
+                RequestType.THRIFT_METADATA);
     return fetchMetadataResults(response, response.toString());
   }
 
@@ -713,7 +795,12 @@ final class DatabricksThriftAccessor {
             .setOperationHandle(operationHandle)
             .setGetProgressUpdate(false);
     while (shouldContinuePolling(statusResp)) {
-      statusResp = getThriftClient().GetOperationStatus(statusReq);
+      statusResp =
+          (TGetOperationStatusResp)
+              wrapTCLICall(
+                  statusReq,
+                  r -> getThriftClient().GetOperationStatus((TGetOperationStatusReq) r),
+                  RequestType.THRIFT_METADATA);
       checkOperationStatusForErrors(statusResp, statementId);
     }
 
@@ -839,7 +926,12 @@ final class DatabricksThriftAccessor {
   private TGetOperationStatusResp getOperationStatus(
       TGetOperationStatusReq statusReq, StatementId statementId) throws TException {
     long operationStatusStartTime = System.nanoTime();
-    TGetOperationStatusResp operationStatus = getThriftClient().GetOperationStatus(statusReq);
+    TGetOperationStatusResp operationStatus =
+        (TGetOperationStatusResp)
+            wrapTCLICall(
+                statusReq,
+                r -> getThriftClient().GetOperationStatus((TGetOperationStatusReq) r),
+                RequestType.THRIFT_METADATA);
     long operationStatusEndTime = System.nanoTime();
     long operationStatusLatencyMillis =
         (operationStatusEndTime - operationStatusStartTime) / 1_000_000;
@@ -850,5 +942,79 @@ final class DatabricksThriftAccessor {
     TelemetryHelper.recordGetOperationStatus(
         connectionContext, statementId.toSQLExecStatementId(), operationStatusLatencyMillis);
     return operationStatus;
+  }
+
+  @SuppressWarnings("rawtypes")
+  private TBase wrapTCLICall(TBase request, ThriftCall thriftCall, RequestType requestType)
+      throws TException {
+    IRetryStrategy strategy = RetryUtils.getRetryStrategy(requestType);
+    LOGGER.debug(
+        "Executing Thrift request, request type: {}, retryStrategy: {}",
+        requestType,
+        strategy.getClass().getSimpleName());
+
+    RetryTimeoutManager retryTimeoutManager = new RetryTimeoutManager(connectionContext);
+    int retryAttempt = 0;
+
+    while (true) {
+      try {
+        return thriftCall.call(request);
+      } catch (TException e) {
+        DatabricksRetryHandlerException retryException = RetryUtils.extractRetryException(e);
+        if (retryException != null) {
+          Optional<Integer> shouldRetryAfter;
+          if (retryException.getCause() != null) {
+            // Case 1: Exception-based retry (e.g., ConnectException, SocketException)
+            shouldRetryAfter =
+                strategy.shouldRetryAfter(
+                    (Exception) retryException.getCause(), retryAttempt, retryTimeoutManager);
+            if (shouldRetryAfter.isEmpty()) {
+              // Non-retriable exception or exhausted retries for exception
+              String errorMsg =
+                  String.format(
+                      "Failed to flush data to server: %s", retryException.getCause().getMessage());
+              LOGGER.error(retryException.getCause(), errorMsg);
+              throw new TTransportException(TTransportException.UNKNOWN, errorMsg);
+            }
+          } else {
+            // Case 2: HTTP status code-based retry (e.g., 503, 429, 500)
+            int statusCode = retryException.getErrCode();
+            Optional<Integer> retryAfterHeader =
+                RetryUtils.extractRetryAfterHeader(retryException.getHeaders());
+            shouldRetryAfter =
+                strategy.shouldRetryAfter(
+                    statusCode,
+                    retryAfterHeader,
+                    retryAttempt,
+                    connectionContext,
+                    retryTimeoutManager);
+            if (shouldRetryAfter.isEmpty()) {
+              // Non-retriable HTTP status code or exhausted retries for status code
+              String errorMsg =
+                  String.format("Failed to flush data to server: %s", retryException.getMessage());
+              LOGGER.error(retryException, errorMsg);
+              throw new TTransportException(TTransportException.UNKNOWN, errorMsg);
+            }
+          }
+          try {
+            Thread.sleep(shouldRetryAfter.get());
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new TException("Interrupted during retry", ie);
+          }
+          retryAttempt++;
+        } else {
+          // Case 3: TException with no DatabricksRetryHandlerException in cause chain
+          // This shouldn't normally happen but we handle it defensively
+          throw e;
+        }
+      }
+    }
+  }
+
+  @FunctionalInterface
+  @SuppressWarnings("rawtypes")
+  public interface ThriftCall {
+    TBase call(TBase request) throws TException;
   }
 }
