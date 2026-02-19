@@ -36,7 +36,7 @@ public class VolumeOperationProcessorTest {
             .getStreamReceiver((entity) -> {})
             .build();
 
-    when(databricksHttpClient.execute(any())).thenReturn(mockStream);
+    when(databricksHttpClient.executeWithRetry(any(), any())).thenReturn(mockStream);
     when(mockStream.getStatusLine()).thenReturn(mockStatusLine);
     when(mockStatusLine.getStatusCode()).thenReturn(400);
     volumeOperationProcessor.executeGetOperation();
@@ -56,7 +56,7 @@ public class VolumeOperationProcessorTest {
 
     DatabricksHttpException mockException =
         new DatabricksHttpException("Test Exeception", DatabricksDriverErrorCode.INVALID_STATE);
-    doThrow(mockException).when(databricksHttpClient).execute(any());
+    doThrow(mockException).when(databricksHttpClient).executeWithRetry(any(), any());
 
     volumeOperationProcessor.executeGetOperation();
     assertEquals(volumeOperationProcessor.getStatus(), VolumeOperationStatus.FAILED);
@@ -74,7 +74,7 @@ public class VolumeOperationProcessorTest {
 
     DatabricksHttpException mockException =
         new DatabricksHttpException("Test Exeception", DatabricksDriverErrorCode.INVALID_STATE);
-    doThrow(mockException).when(databricksHttpClient).execute(any());
+    doThrow(mockException).when(databricksHttpClient).executeWithRetry(any(), any());
 
     volumeOperationProcessor.executePutOperation();
     assertEquals(volumeOperationProcessor.getStatus(), VolumeOperationStatus.FAILED);

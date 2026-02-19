@@ -99,6 +99,21 @@ public class ArrowResultChunkStatusTest {
       }
 
       @Override
+      public CloseableHttpResponse execute(
+          org.apache.http.client.methods.HttpUriRequest request, boolean supportGzipEncoding)
+          throws DatabricksHttpException {
+        return response(content, length);
+      }
+
+      @Override
+      public CloseableHttpResponse executeWithRetry(
+          org.apache.http.client.methods.HttpUriRequest request,
+          com.databricks.jdbc.common.RequestType requestType)
+          throws DatabricksHttpException {
+        return response(content, length);
+      }
+
+      @Override
       public CloseableHttpResponse executeWithRetry(
           org.apache.http.client.methods.HttpUriRequest request,
           com.databricks.jdbc.common.RequestType requestType,
