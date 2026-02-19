@@ -3,6 +3,7 @@ package com.databricks.jdbc.telemetry;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -34,7 +35,7 @@ public class TelemetryPushClientTest {
       StatusLine mockStatusLine = mock(StatusLine.class);
       when(mockResponse.getStatusLine()).thenReturn(mockStatusLine);
       when(mockStatusLine.getStatusCode()).thenReturn(429);
-      when(mockHttpClient.execute(any())).thenReturn(mockResponse);
+      when(mockHttpClient.executeWithRetry(any(), any(), anyBoolean())).thenReturn(mockResponse);
 
       IDatabricksConnectionContext mockContext = mock(IDatabricksConnectionContext.class);
       when(mockContext.getHostUrl()).thenReturn("https://example.com");
@@ -62,7 +63,7 @@ public class TelemetryPushClientTest {
       StatusLine mockStatusLine = mock(StatusLine.class);
       when(mockResponse.getStatusLine()).thenReturn(mockStatusLine);
       when(mockStatusLine.getStatusCode()).thenReturn(429);
-      when(mockHttpClient.execute(any())).thenReturn(mockResponse);
+      when(mockHttpClient.executeWithRetry(any(), any(), anyBoolean())).thenReturn(mockResponse);
 
       IDatabricksConnectionContext mockContext = mock(IDatabricksConnectionContext.class);
       when(mockContext.getHostUrl()).thenReturn("https://example.com");
@@ -91,7 +92,7 @@ public class TelemetryPushClientTest {
       StatusLine mockStatusLine = mock(StatusLine.class);
       when(mockResponse.getStatusLine()).thenReturn(mockStatusLine);
       when(mockStatusLine.getStatusCode()).thenReturn(statusCode);
-      when(mockHttpClient.execute(any())).thenReturn(mockResponse);
+      when(mockHttpClient.executeWithRetry(any(), any(), anyBoolean())).thenReturn(mockResponse);
 
       IDatabricksConnectionContext mockContext = mock(IDatabricksConnectionContext.class);
       when(mockContext.getHostUrl()).thenReturn("https://example.com");
@@ -120,7 +121,7 @@ public class TelemetryPushClientTest {
       StatusLine mockStatusLine = mock(StatusLine.class);
       when(mockResponse.getStatusLine()).thenReturn(mockStatusLine);
       when(mockStatusLine.getStatusCode()).thenReturn(statusCode);
-      when(mockHttpClient.execute(any())).thenReturn(mockResponse);
+      when(mockHttpClient.executeWithRetry(any(), any(), anyBoolean())).thenReturn(mockResponse);
 
       IDatabricksConnectionContext mockContext = mock(IDatabricksConnectionContext.class);
       when(mockContext.getHostUrl()).thenReturn("https://example.com");
