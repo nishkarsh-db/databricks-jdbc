@@ -185,7 +185,7 @@ public class ChunkDownloadTaskTest {
     assertDoesNotThrow(task::call);
 
     // Verify HTTP client was called 3 times (2 failures + 1 success)
-    verify(httpClient, times(3)).execute(any(HttpGet.class), eq(true));
+    verify(httpClient, times(3)).executeWithRetry(any(HttpGet.class), any(), eq(true));
 
     // Verify status progression: DOWNLOAD_FAILED -> DOWNLOAD_RETRY -> DOWNLOAD_FAILED ->
     // DOWNLOAD_RETRY -> DOWNLOAD_SUCCEEDED -> PROCESSING_SUCCEEDED

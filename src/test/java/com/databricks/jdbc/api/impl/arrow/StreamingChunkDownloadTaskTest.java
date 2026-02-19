@@ -260,7 +260,7 @@ public class StreamingChunkDownloadTaskTest {
     assertDoesNotThrow(task::call);
 
     // Verify HTTP client was called 3 times (2 failures + 1 success)
-    verify(httpClient, times(3)).execute(any(HttpGet.class), eq(true));
+    verify(httpClient, times(3)).executeWithRetry(any(HttpGet.class), any(), eq(true));
 
     // Verify status progression includes retries
     assertTrue(statusHistory.contains(ChunkStatus.DOWNLOAD_FAILED));
