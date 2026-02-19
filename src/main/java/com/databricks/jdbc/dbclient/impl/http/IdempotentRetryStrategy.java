@@ -83,14 +83,20 @@ public class IdempotentRetryStrategy implements IRetryStrategy {
         retryAfterHeader.isPresent() ? retryAfterHeader.get() + "ms" : "not present",
         executionAttempt);
 
-    if (!isStatusCodeRetriable(statusCode, connectionContext)) {
+    // Check if this is an API retriable code
+    boolean isApiRetriableCode = connectionContext.getApiRetriableHttpCodes().contains(statusCode);
+
+    // If not retriable by standard logic AND not an API retriable code, don't retry
+    if (!isStatusCodeRetriable(statusCode, connectionContext) && !isApiRetriableCode) {
       return Optional.empty();
     }
 
     int retryAfter =
         retryAfterHeader.orElseGet(() -> RetryUtils.calculateExponentialBackoff(executionAttempt));
 
-    if (!retryTimeoutManager.evaluateRetryTimeoutForResponse(statusCode, retryAfter)) {
+    // Let timeout manager handle the timeout with the isApiRetriableCode flag
+    if (!retryTimeoutManager.evaluateRetryTimeoutForResponse(
+        statusCode, retryAfter, isApiRetriableCode)) {
       LOGGER.error("Retry timeout reached after attempt {}, returning response.", executionAttempt);
       return Optional.empty();
     }

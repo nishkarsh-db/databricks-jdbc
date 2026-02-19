@@ -24,13 +24,17 @@ public class NonIdempotentRetryStrategyTest {
   @BeforeEach
   public void setUp() {
     strategy = new NonIdempotentRetryStrategy();
+    // Mock API retriable codes to return empty set by default (lenient for exception tests)
+    lenient()
+        .when(mockConnectionContext.getApiRetriableHttpCodes())
+        .thenReturn(java.util.Collections.emptySet());
   }
 
   // Test 1: Retriable response (503/429) WITH Retry-After header
   @Test
   public void testRetriableResponseWithRetryAfterHeader() {
     when(mockConnectionContext.shouldRetryTemporarilyUnavailableError()).thenReturn(true);
-    when(mockRetryTimeoutManager.evaluateRetryTimeoutForResponse(anyInt(), anyInt()))
+    when(mockRetryTimeoutManager.evaluateRetryTimeoutForResponse(anyInt(), anyInt(), anyBoolean()))
         .thenReturn(true);
 
     Optional<Integer> retryAfter = Optional.of(30000);
@@ -126,7 +130,7 @@ public class NonIdempotentRetryStrategyTest {
   @Test
   public void testRetryStopsWhenTimeoutReachedForResponse() {
     when(mockConnectionContext.shouldRetryRateLimitError()).thenReturn(true);
-    when(mockRetryTimeoutManager.evaluateRetryTimeoutForResponse(anyInt(), anyInt()))
+    when(mockRetryTimeoutManager.evaluateRetryTimeoutForResponse(anyInt(), anyInt(), anyBoolean()))
         .thenReturn(false);
 
     Optional<Integer> result =
