@@ -2,6 +2,7 @@ package com.databricks.jdbc.auth;
 
 import com.databricks.jdbc.api.internal.IDatabricksConnectionContext;
 import com.databricks.jdbc.common.DatabricksJdbcConstants;
+import com.databricks.jdbc.common.RequestType;
 import com.databricks.jdbc.common.util.DriverUtil;
 import com.databricks.jdbc.common.util.JsonUtil;
 import com.databricks.jdbc.common.util.ValidationUtil;
@@ -230,7 +231,7 @@ public class DatabricksTokenFederationProvider implements CredentialsProvider, T
                   .collect(Collectors.toList()),
               StandardCharsets.UTF_8));
       headers.forEach(postRequest::setHeader);
-      HttpResponse response = hc.execute(postRequest);
+      HttpResponse response = hc.executeWithRetry(postRequest, RequestType.AUTH);
 
       // Check for HTTP errors and build detailed error message
       String httpError = ValidationUtil.checkHTTPErrorWithoutThrowingError(response);

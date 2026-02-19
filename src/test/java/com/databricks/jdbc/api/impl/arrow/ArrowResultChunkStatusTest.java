@@ -106,6 +106,23 @@ public class ArrowResultChunkStatusTest {
       }
 
       @Override
+      public CloseableHttpResponse executeWithRetry(
+          org.apache.http.client.methods.HttpUriRequest request,
+          com.databricks.jdbc.common.RequestType requestType)
+          throws DatabricksHttpException {
+        return response(content, length);
+      }
+
+      @Override
+      public CloseableHttpResponse executeWithRetry(
+          org.apache.http.client.methods.HttpUriRequest request,
+          com.databricks.jdbc.common.RequestType requestType,
+          boolean supportGzipEncoding)
+          throws DatabricksHttpException {
+        return response(content, length);
+      }
+
+      @Override
       public <T> java.util.concurrent.Future<T> executeAsync(
           org.apache.hc.core5.http.nio.AsyncRequestProducer requestProducer,
           org.apache.hc.core5.http.nio.AsyncResponseConsumer<T> responseConsumer,

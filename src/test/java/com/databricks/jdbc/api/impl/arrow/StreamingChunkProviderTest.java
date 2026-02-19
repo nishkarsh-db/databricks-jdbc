@@ -144,7 +144,9 @@ class StreamingChunkProviderTest {
 
     // Setup execute with tracking
     lenient()
-        .when(mockHttpClient.execute(any(HttpUriRequest.class), anyBoolean()))
+        .when(
+            mockHttpClient.executeWithRetry(
+                any(HttpUriRequest.class), eq(RequestType.CLOUD_FETCH), anyBoolean()))
         .thenAnswer(
             invocation -> {
               int current = concurrentDownloads.incrementAndGet();
@@ -199,7 +201,8 @@ class StreamingChunkProviderTest {
         .thenAnswer(inv -> new ByteArrayInputStream(validArrowData));
     lenient().when(mockHttpEntity.getContentLength()).thenReturn((long) validArrowData.length);
 
-    when(mockHttpClient.execute(any(HttpUriRequest.class), anyBoolean()))
+    when(mockHttpClient.executeWithRetry(
+            any(HttpUriRequest.class), eq(RequestType.CLOUD_FETCH), anyBoolean()))
         .thenAnswer(
             invocation -> {
               HttpUriRequest request = invocation.getArgument(0);
