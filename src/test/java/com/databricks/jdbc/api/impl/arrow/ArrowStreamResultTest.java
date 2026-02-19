@@ -116,7 +116,8 @@ public class ArrowStreamResultTest {
     DatabricksSession session = new DatabricksSession(connectionContext, mockedSdkClient);
     setupMockResponse();
     setupResultChunkMocks();
-    when(mockHttpClient.executeWithRetry(isA(HttpUriRequest.class), any(), eq(true)))
+    when(mockHttpClient.executeWithRetry(
+            isA(HttpUriRequest.class), eq(RequestType.CLOUD_FETCH), eq(true)))
         .thenReturn(httpResponse);
 
     ArrowStreamResult result =
@@ -178,7 +179,8 @@ public class ArrowStreamResultTest {
     DatabricksSession session = new DatabricksSession(connectionContext, mockedSdkClient);
 
     setupMockResponse();
-    when(mockHttpClient.executeWithRetry(isA(HttpUriRequest.class), any(), eq(true)))
+    when(mockHttpClient.executeWithRetry(
+            isA(HttpUriRequest.class), eq(RequestType.CLOUD_FETCH), eq(true)))
         .thenReturn(httpResponse);
 
     ArrowStreamResult result =
@@ -486,7 +488,8 @@ public class ArrowStreamResultTest {
     ResultData localResultData = new ResultData().setExternalLinks(getChunkLinks(0L, 0L, true));
 
     setupMockResponse();
-    when(mockHttpClient.executeWithRetry(isA(HttpUriRequest.class), any(), eq(true)))
+    when(mockHttpClient.executeWithRetry(
+            isA(HttpUriRequest.class), eq(RequestType.CLOUD_FETCH), eq(true)))
         .thenReturn(httpResponse);
 
     ArrowStreamResult result =
@@ -525,7 +528,8 @@ public class ArrowStreamResultTest {
     ResultData localResultData = new ResultData().setExternalLinks(getChunkLinks(0L, 0L, true));
 
     setupMockResponse();
-    when(mockHttpClient.executeWithRetry(isA(HttpUriRequest.class), any(), eq(true)))
+    when(mockHttpClient.executeWithRetry(
+            isA(HttpUriRequest.class), eq(RequestType.CLOUD_FETCH), eq(true)))
         .thenReturn(httpResponse);
 
     ArrowStreamResult result =
@@ -568,7 +572,8 @@ public class ArrowStreamResultTest {
     when(parentStatement.getStatementId()).thenReturn(STATEMENT_ID);
 
     setupMockResponse();
-    when(mockHttpClient.executeWithRetry(isA(HttpUriRequest.class), any(), eq(true)))
+    when(mockHttpClient.executeWithRetry(
+            isA(HttpUriRequest.class), eq(RequestType.CLOUD_FETCH), eq(true)))
         .thenReturn(httpResponse);
 
     ArrowStreamResult result =

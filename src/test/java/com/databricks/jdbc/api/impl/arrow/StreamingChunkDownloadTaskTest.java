@@ -235,7 +235,7 @@ public class StreamingChunkDownloadTaskTest {
 
     byte[] validArrowData = new byte[] {1, 2, 3, 4, 5};
     AtomicInteger httpCallCount = new AtomicInteger(0);
-    when(httpClient.executeWithRetry(any(HttpGet.class), any(), eq(true)))
+    when(httpClient.executeWithRetry(any(HttpGet.class), eq(RequestType.CLOUD_FETCH), eq(true)))
         .thenAnswer(
             invocation -> {
               int callNumber = httpCallCount.incrementAndGet();
@@ -260,7 +260,8 @@ public class StreamingChunkDownloadTaskTest {
     assertDoesNotThrow(task::call);
 
     // Verify HTTP client was called 3 times (2 failures + 1 success)
-    verify(httpClient, times(3)).executeWithRetry(any(HttpGet.class), any(), eq(true));
+    verify(httpClient, times(3))
+        .executeWithRetry(any(HttpGet.class), eq(RequestType.CLOUD_FETCH), eq(true));
 
     // Verify status progression includes retries
     assertTrue(statusHistory.contains(ChunkStatus.DOWNLOAD_FAILED));
