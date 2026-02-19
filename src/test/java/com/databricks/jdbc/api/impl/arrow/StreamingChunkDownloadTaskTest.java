@@ -235,7 +235,7 @@ public class StreamingChunkDownloadTaskTest {
 
     byte[] validArrowData = new byte[] {1, 2, 3, 4, 5};
     AtomicInteger httpCallCount = new AtomicInteger(0);
-    when(httpClient.execute(any(HttpGet.class), eq(true)))
+    when(httpClient.executeWithRetry(any(HttpGet.class), any(), eq(true)))
         .thenAnswer(
             invocation -> {
               int callNumber = httpCallCount.incrementAndGet();
