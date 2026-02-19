@@ -37,37 +37,19 @@ public class IdempotentRetryStrategy implements IRetryStrategy {
       new HashSet<>(Arrays.asList(400, 401, 403, 404, 405, 409, 410, 411, 412, 413, 414, 415, 416));
 
   /**
-   * Determines if an HTTP response should be retried for idempotent requests and calculates the
-   * retry delay.
+   * Idempotent retry strategy implementation - retries aggressively for safe operations.
    *
-   * <p>This method checks if the status code is retriable (all error codes except specific client
-   * errors like 400, 401, 403, 404, etc.). For retriable responses:
+   * <p><b>Retriable Status Codes:</b>
    *
    * <ul>
-   *   <li>If a Retry-After header is present, uses that value as the retry delay
-   *   <li>If no Retry-After header, calculates exponential backoff based on execution attempt
-   *   <li>Validates the retry delay against configured timeouts using RetryTimeoutManager
+   *   <li>All 5xx server errors (500, 502, 503, etc.)
+   *   <li>429 Too Many Requests (if rate limit retry enabled)
+   *   <li>All error codes EXCEPT: 400, 401, 403, 404, 405, 409, 410, 411, 412, 413, 414, 415, 416
+   *   <li>Custom API retriable codes (from connection context)
    * </ul>
    *
-   * <p>Timeout determination: The RetryTimeoutManager maintains separate timeout budgets for
-   * different status codes (503, 429, and other errors). For each retry attempt:
-   *
-   * <ol>
-   *   <li>The retry delay is subtracted from the appropriate timeout budget
-   *   <li>If the remaining budget is positive, retry is allowed
-   *   <li>If the remaining budget becomes zero or negative, all retries are exhausted and the
-   *       request fails
-   * </ol>
-   *
-   * <p>Initial timeout values are configured via connection context (e.g.,
-   * TemporarilyUnavailableRetryTimeout for 503, RateLimitRetryTimeout for 429).
-   *
-   * @param statusCode the HTTP status code from the response
-   * @param retryAfterHeader optional Retry-After header value in milliseconds
-   * @param executionAttempt the current execution attempt number (0-based)
-   * @param connectionContext the connection context with retry configuration
-   * @param retryTimeoutManager manages timeout tracking across retries
-   * @return Optional containing retry delay in milliseconds if retry should occur, empty otherwise
+   * <p><b>Retry Delay Calculation:</b> Uses Retry-After header if present, otherwise exponential
+   * backoff (1s to 10s with jitter).
    */
   @Override
   public Optional<Integer> shouldRetryAfter(
@@ -105,35 +87,15 @@ public class IdempotentRetryStrategy implements IRetryStrategy {
   }
 
   /**
-   * Determines if a request should be retried after an exception for idempotent requests and
-   * calculates the retry delay.
+   * Idempotent exception retry strategy - retries most exceptions except programming errors.
    *
-   * <p>This method checks if the exception is retriable (all exceptions except specific runtime
-   * exceptions like IllegalArgumentException, IllegalStateException, etc.). For retriable
-   * exceptions:
+   * <p><b>Retriable Exceptions:</b> All exceptions EXCEPT specific runtime exceptions:
+   * IllegalArgumentException, IllegalStateException, UnsupportedOperationException,
+   * IndexOutOfBoundsException, NullPointerException, ClassCastException, NumberFormatException,
+   * ArrayIndexOutOfBoundsException, ArrayStoreException, ArithmeticException,
+   * NegativeArraySizeException.
    *
-   * <ul>
-   *   <li>Calculates exponential backoff delay based on execution attempt
-   *   <li>Validates the retry delay against configured exception timeout using RetryTimeoutManager
-   * </ul>
-   *
-   * <p>Timeout determination: The RetryTimeoutManager maintains a separate timeout budget for
-   * exceptions. For each retry attempt:
-   *
-   * <ol>
-   *   <li>The retry delay (calculated via exponential backoff) is subtracted from the exception
-   *       timeout budget
-   *   <li>If the remaining budget is positive, retry is allowed
-   *   <li>If the remaining budget becomes zero or negative, all retries are exhausted and the
-   *       exception is thrown
-   * </ol>
-   *
-   * <p>The initial exception timeout value is configured via connection context.
-   *
-   * @param e the exception that occurred during request execution
-   * @param executionAttempt the current execution attempt number (0-based)
-   * @param retryTimeoutManager manages timeout tracking across retries
-   * @return Optional containing retry delay in milliseconds if retry should occur, empty otherwise
+   * <p><b>Retry Delay:</b> Exponential backoff (1s to 10s with jitter).
    */
   @Override
   public Optional<Integer> shouldRetryAfter(
